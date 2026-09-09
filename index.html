@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#c45c26" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="小辅食谱" />
+<title>小辅食谱 · 6–24月</title>
+<style>
+:root{--bg:#f7f1e8;--card:#fffdf8;--ink:#2b2118;--muted:#7a6a5a;--accent:#c45c26;--accent2:#2f6b4f;--line:#ead9c4;--chip:#f3e4d4;}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"PingFang SC","Noto Sans SC","Source Han Sans SC",system-ui,sans-serif;line-height:1.45}
+body{padding-bottom:88px}
+header{position:sticky;top:0;z-index:20;background:#c45c26;color:#fff;padding:14px 16px 12px}
+header h1{margin:0;font-size:18px}
+header p{margin:4px 0 0;opacity:.92;font-size:12px}
+.wrap{padding:14px 14px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.meal{border-left:4px solid var(--accent);padding-left:10px;margin:12px 0}
+.meal h3{margin:0 0 4px;font-size:16px}
+.tag{display:inline-block;background:var(--chip);color:#6b4a32;border-radius:999px;padding:2px 8px;font-size:11px;margin:0 4px 4px 0}
+.tag.iron{background:#fde8d8;color:#9a3412}
+.tag.safe{background:#dcefe4;color:#14532d}
+.tag.liver{background:#fee2e2;color:#9b2c2c}
+.tag.no{background:#f3f4f6;color:#6b7280}
+button{appearance:none;border:0;background:var(--accent);color:#fff;border-radius:12px;padding:10px 14px;font-size:14px;font-weight:600}
+button.ghost{background:#fff;color:var(--accent);border:1px solid #e8c8b0}
+button.ok{background:var(--accent2)}
+button.tiny{padding:6px 10px;font-size:12px}
+input,select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:15px;font-family:inherit}
+label{font-size:12px;color:var(--muted);display:block;margin:8px 0 4px}
+.nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:#fff;border-top:1px solid var(--line);padding:6px 4px calc(8px + env(safe-area-inset-bottom))}
+.nav button{flex:1;background:transparent;color:var(--muted);font-size:11px;padding:8px 4px}
+.nav button.on{color:var(--accent)}
+.hidden{display:none}
+ul{margin:6px 0;padding-left:18px}
+.small{font-size:12px;color:var(--muted)}
+.shop-item{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px dashed var(--line);align-items:center}
+.shop-item .cnt{background:var(--chip);border-radius:999px;padding:1px 8px;font-size:11px;color:#6b4a32}
+.warnbox{background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:10px;font-size:12px;color:#9a3412}
+.shop-group{margin-top:10px}
+.shop-group h4{margin:0 0 4px;font-size:13px}
+</style>
+</head>
+<body>
+<header>
+  <h1>小辅食谱</h1>
+  <p id="sub">6个月添加辅食 → 约2岁接近家人饭菜</p>
+</header>
+<div class="wrap">
+  <section id="page-today">
+    <div class="card">
+      <div class="row">
+        <div style="flex:1">
+          <div class="small" id="todayDate"></div>
+          <strong>今日菜单</strong>
+        </div>
+        <button id="btnRegen">换一套</button>
+      </div>
+      <div class="small" id="stageHint" style="margin-top:6px"></div>
+    </div>
+    <div id="todayMeals"></div>
+    <div class="card warnbox">过敏急救：皮疹发痒可观察并停该食物；若呕吐、喘、唇肿、精神差，立刻就医，不要只换菜单。贫血、早产未评估不要自行加量吃肝。</div>
+    <div class="card">
+      <strong>今日购物（缺货项）</strong>
+      <div id="todayShop" class="small"></div>
+    </div>
+  </section>
+  <section id="page-week" class="hidden">
+    <div class="card">
+      <strong>本周购物总清单</strong>
+      <p class="small">按当前月龄的未来7天菜单汇总。</p>
+      <div class="row" style="margin-top:10px">
+        <button class="ok" id="btnCopyShop">复制待买清单</button>
+        <button class="ghost" id="btnCopyAllShop">复制全部食材</button>
+      </div>
+    </div>
+    <div id="weekShop"></div>
+    <div class="card"><strong>本周菜单</strong></div>
+    <div id="weekList"></div>
+  </section>
+  <section id="page-pantry" class="hidden">
+    <div class="card">
+      <strong>家里现有食材</strong>
+      <div id="pantryBox"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="ok" id="btnSavePantry">保存库存</button>
+        <button class="ghost" id="btnAllPantry">全选常见</button>
+      </div>
+    </div>
+  </section>
+  <section id="page-me" class="hidden">
+    <div class="card">
+      <strong>宝宝档案</strong>
+      <label>小名</label><input id="childName" value="宝宝" />
+      <label>出生日期（据此自动计算月龄和本周菜单）</label>
+      <input id="childBirth" type="date" />
+      <p class="small" id="ageAuto" style="margin-top:8px">保存出生日期后自动计算。</p>
+      <label>是否早产</label>
+      <select id="preterm">
+        <option value="0">足月</option>
+        <option value="2">早产约2周</option>
+        <option value="4">早产约4周</option>
+        <option value="6">早产约6周</option>
+        <option value="8">早产约8周</option>
+        <option value="10">早产约10周</option>
+        <option value="12">早产约12周</option>
+      </select>
+      <p class="small">早产按纠正月龄出餐，并请儿保医生确认能否添加辅食。</p>
+      <label>最近大便情况（只改食材倾向，不是治疗）</label>
+      <select id="gut">
+        <option value="normal">平常</option>
+        <option value="constipation">偏便秘</option>
+        <option value="diarrhea">偏稀/腹泻恢复期</option>
+      </select>
+      <label>6个月是否加第2餐</label>
+      <select id="extra6">
+        <option value="0">先1餐</option>
+        <option value="1">胃口好则2餐</option>
+      </select>
+      <label>过敏/不吃（逗号分隔）</label>
+      <input id="allergy" placeholder="例如：芒果, 花生" />
+      <div class="row" style="margin-top:10px"><button class="ok" id="btnSaveMe">保存档案</button></div>
+    </div>
+    <div class="card">
+      <strong>什么时候能吃和大人一样的饭？</strong>
+      <ul class="small">
+        <li><b>6个月</b>起加辅食，奶仍是主食。</li>
+        <li><b>12个月</b>起可吃家里饭菜的软烂版，仍少盐少糖。</li>
+        <li><b>18–24个月</b>质地基本接近家人，仍要切小、去骨刺、看护防呛。</li>
+        <li><b>约2岁（24个月）</b>可以和家人同桌吃同一锅菜，但不是完全相同：盐糖油仍要少，辣椒、整颗坚果、粘糖、硬片、酒仍不要给。</li>
+        <li><b>3岁前后</b>大多数孩子能稳定吃家庭餐。整颗坚果、口香糖、硬糖等要更晚。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <strong>不吃的菜</strong>
+      <div id="noList"></div>
+      <button class="ghost tiny" id="btnClearNo" style="margin-top:8px">清空不吃记录</button>
+    </div>
+    <div class="card warnbox" id="legalBox">
+      本工具只提供辅食参考，不能替代儿保体检或医生诊疗，不保证营养达标、不治疗过敏或贫血。克数是起点，按饥饿饱足加减，不要强制吃完。出现皮疹、呕吐、呼吸困难、面唇肿、便血请立即停该食物并就医。维生素D是否补充听儿保医生，应用不售药。出生日期仅存在本机。
+    </div>
+    <div class="card" id="ageTips"></div>
+  </section>
+</div>
+<nav class="nav">
+  <button class="on" data-p="today">今日</button>
+  <button data-p="week">本周</button>
+  <button data-p="pantry">库存</button>
+  <button data-p="me">设置</button>
+</nav>
+<script>
+const ING = {
+  grains:["高铁米粉","大米","小米","燕麦","面条","馒头","红薯","土豆","南瓜","玉米","山药","芋头"],
+  protein:["鸡蛋","蛋黄","猪瘦肉","鸡腿肉","牛肉","猪肝","鸡肝","鲈鱼","鳕鱼","虾仁","豆腐","酸奶","牛奶","奶酪","鸡胸肉"],
+  veg:["西兰花","菠菜","胡萝卜","番茄","黄瓜","白菜","豆角","玉米粒","西葫芦","冬瓜","香菇","豌豆"],
+  fruit:["香蕉","苹果","梨","蓝莓","西瓜","猕猴桃","橙子","草莓","火龙果"],
+  extra:["橄榄油","芝麻酱","原味花生酱"]
+};
+
+function rec(id,slot,name,need,grams,steps,note,iron,liver,min,max){
+  return {id,slot,name,need,grams,steps,note,iron:iron||0,liver:liver||0,min:min||6,max:max||24};
+}
+const R = [
+  /* 6-8 泥 */
+  rec("p1","lunch","高铁米粉+南瓜泥",["高铁米粉","南瓜"],{"高铁米粉":"15g","南瓜":"30g"},["南瓜蒸熟碾细泥。","米粉按说明冲调，拌匀稍凉。"],"6月优先高铁。一次一种新食物。",1,0,6,8),
+  rec("p2","dinner","胡萝卜泥",["胡萝卜"],{"胡萝卜":"40g"},["蒸软碾成细滑泥，过筛更好。"],"观察3天再加新食物。",0,0,6,8),
+  rec("p3","lunch","西兰花泥",["西兰花"],{"西兰花":"35g"},["只取花蕾蒸软碾细。"],"",0,0,6,8),
+  rec("p4","dinner","苹果泥",["苹果"],{"苹果":"40g"},["去皮去核蒸软碾泥。"],"",0,0,6,8),
+  rec("p5","lunch","梨泥",["梨"],{"梨":"40g"},["去皮去核蒸软碾泥。"],"",0,0,6,8),
+  rec("p6","dinner","红薯泥",["红薯"],{"红薯":"40g"},["蒸透碾细。"],"确认无硬丝。",0,0,6,8),
+  rec("p7","lunch","土豆泥（清水）",["土豆"],{"土豆":"40g"},["蒸熟碾细，可加一点菜水。"],"1岁内不加盐奶黄油。",0,0,6,8),
+  rec("p8","dinner","香蕉泥",["香蕉"],{"香蕉":"40g"},["熟香蕉碾细。"],"易便秘者少给。",0,0,6,8),
+  rec("p9","lunch","蛋黄泥+米粉",["蛋黄","高铁米粉"],{"蛋黄":"1/4个起","高铁米粉":"10g"},["先从1/4个蛋黄开始。","碾细拌米粉。"],"确认无蛋过敏后再加量。",1,0,6,9),
+  rec("p10","dinner","西葫芦泥",["西葫芦"],{"西葫芦":"40g"},["去籽蒸软碾细。"],"",0,0,6,8),
+  rec("p11","lunch","菠菜泥+米粉",["菠菜","高铁米粉"],{"菠菜":"20g","高铁米粉":"10g"},["焯水挤去部分汁，碾细拌米粉。"],"焯水减轻草酸。",1,0,7,9),
+  rec("p12","dinner","鸡胸肉泥+南瓜",["鸡胸肉","南瓜"],{"鸡胸肉":"15g","南瓜":"30g"},["鸡肉蒸熟搅打成细泥，拌南瓜。"],"必须细，无颗粒。",1,0,7,9),
+  rec("p13","lunch","猪肉泥+胡萝卜",["猪瘦肉","胡萝卜"],{"猪瘦肉":"15g","胡萝卜":"30g"},["瘦肉搅打极细，与胡萝卜泥同蒸。"],"",1,0,7,9),
+  rec("p14","dinner","鲈鱼泥+土豆",["鲈鱼","土豆"],{"鲈鱼":"15g净肉","土豆":"30g"},["蒸熟去刺搅细泥。"],"刺必须去净。",1,0,7,9),
+  rec("p15","lunch","猪肝泥+米粉",["猪肝","高铁米粉"],{"猪肝":"10g","高铁米粉":"10g"},["去筋膜焯水搅细泥。"],"内脏，周≤2。",1,1,7,12),
+  rec("p16","dinner","豆腐泥+南瓜",["豆腐","南瓜"],{"豆腐":"25g","南瓜":"30g"},["嫩豆腐碾泥拌南瓜。"],"",0,0,7,10),
+  rec("p17","lunch","鲈鱼泥+小米粥",["鲈鱼","小米"],{"鲈鱼":"15g净肉","小米":"15g干"},["鱼去刺搅细，拌小米粥。"],"6–8月可观察下引入鱼。",1,0,7,10),
+  rec("p18","dinner","稀花生酱米糊",["高铁米粉","原味花生酱"],{"高铁米粉":"15g","原味花生酱":"约2g调稀"},["无颗粒原味酱用米糊或热水调到很稀。","禁止整颗坚果。"],"过敏观察；湿疹严重先问医生。",1,0,7,11),
+  rec("p19","snack","西梅或蒸梨（助便倾向）",["梨"],{"梨":"40g"},["蒸软碾泥或小块。"],"偏便秘时优先，腹泻时不用。",0,0,7,24),
+  rec("p20","lunch","全蛋羹+胡萝卜泥",["鸡蛋","胡萝卜"],{"鸡蛋":"1/2–1个","胡萝卜":"30g"},["已适应蛋黄后再试全蛋，蒸嫩。"],"不刻意长期只吃蛋黄。",1,0,7,12),
+
+  /* 8-12 稠泥/小颗粒 */
+  rec("q1","breakfast","小米南瓜粥（可有小粒）",["小米","南瓜"],{"小米":"20g干","南瓜":"40g"},["煮至软烂，可留细小颗粒练咀嚼。"],"8月起可稍稠。",0,0,8,12),
+  rec("q2","lunch","肉末菜粥",["大米","猪瘦肉","菠菜"],{"大米":"20g干","猪瘦肉":"20g","菠菜":"20g"},["肉末煮软，菜切碎末入粥。"],"",1,0,8,13),
+  rec("q3","dinner","鱼肉蔬菜粥",["大米","鲈鱼","胡萝卜"],{"大米":"20g干","鲈鱼":"20g","胡萝卜":"25g"},["鱼去刺撕碎，粥软烂。"],"",1,0,8,13),
+  rec("q4","breakfast","蛋黄蔬菜粥",["大米","蛋黄","西兰花"],{"大米":"20g干","蛋黄":"1个","西兰花":"20g"},["蛋黄碾碎拌粥。"],"10月后可试全蛋。",1,0,8,12),
+  rec("q5","lunch","鸡肉土豆泥（可有小块）",["鸡腿肉","土豆","胡萝卜"],{"鸡腿肉":"20g","土豆":"40g","胡萝卜":"20g"},["去骨撕碎，薯类压泥留细粒。"],"",1,0,9,13),
+  rec("q6","dinner","番茄肉末软粥",["大米","猪瘦肉","番茄"],{"大米":"20g干","猪瘦肉":"20g","番茄":"40g"},["番茄煮软无皮，肉末入粥。"],"1岁内无盐。",1,0,8,13),
+  rec("q7","snack","蒸苹果小块",["苹果"],{"苹果":"40g"},["蒸软切小薄片。"],"坐着吃，看护。",0,0,8,14),
+  rec("q8","snack","香蕉条（竖切）",["香蕉"],{"香蕉":"40g"},["竖切长条，不要整圆段。"],"",0,0,8,16),
+  rec("q9","breakfast","面条碎+蛋黄",["面条","蛋黄","菠菜"],{"面条":"25g","蛋黄":"1个","菠菜":"15g"},["面煮软切碎末。"],"",1,0,9,13),
+  rec("q10","lunch","鳕鱼蔬菜泥",["鳕鱼","西兰花","土豆"],{"鳕鱼":"20g","西兰花":"20g","土豆":"30g"},["去刺压成带细粒的泥。"],"",1,0,8,13),
+  rec("q11","dinner","鸡肝蔬菜粥",["大米","鸡肝","胡萝卜"],{"大米":"20g干","鸡肝":"10g","胡萝卜":"20g"},["肝切碎焯水煮入粥。"],"内脏周≤2。",1,1,8,14),
+  rec("q12","snack","蒸梨软块",["梨"],{"梨":"40g"},["蒸软手抓。"],"",0,0,9,16),
+  rec("q13","lunch","豆腐蔬菜粥",["大米","豆腐","白菜"],{"大米":"20g干","豆腐":"30g","白菜":"25g"},["豆腐碾碎入粥。"],"",0,0,8,13),
+  rec("q14","dinner","牛肉末软粥",["大米","牛肉","胡萝卜"],{"大米":"20g干","牛肉":"20g","胡萝卜":"25g"},["牛肉剁细慢煮至软。"],"",1,0,9,13),
+  rec("q15","breakfast","山药粥+蛋黄",["山药","大米","蛋黄"],{"山药":"30g","大米":"15g干","蛋黄":"1个"},["山药煮化。"],"",1,0,8,12),
+
+  /* 12-24 软块/家常，沿用并标月龄 */
+  rec("b1","breakfast","蔬菜鸡蛋软饼",["鸡蛋","菠菜","馒头"],{"鸡蛋":"1个","菠菜":"40g","馒头":"30g"},["菠菜焯碎，摊软饼切小块。"],"可极少量盐。",1,0,12,24),
+  rec("b2","breakfast","南瓜小米粥+蒸蛋",["小米","南瓜","鸡蛋"],{"小米":"25g干","南瓜":"60g","鸡蛋":"1个"},["粥煮烂，另蒸蛋羹。"],"",1,0,11,24),
+  rec("b3","breakfast","香蕉燕麦酸奶碗",["燕麦","香蕉","酸奶"],{"燕麦":"20g干","香蕉":"50g","酸奶":"80g"},["燕麦煮软，凉后拌无糖酸奶。"],"酸奶建议1岁后常规给。",0,0,12,24),
+  rec("b4","breakfast","肉末青菜软面",["面条","猪瘦肉","白菜"],{"面条":"40g","猪瘦肉":"25g","白菜":"50g"},["面煮软切短。"],"",1,0,11,24),
+  rec("b5","breakfast","红薯泥+牛奶",["红薯","牛奶"],{"红薯":"80g","牛奶":"120ml"},["蒸熟压泥或手指条。"],"",0,0,12,24),
+  rec("b6","breakfast","西兰花奶酪烘蛋",["鸡蛋","西兰花","奶酪"],{"鸡蛋":"1个","西兰花":"40g","奶酪":"10g"},["蒸或烘熟。"],"低盐奶酪。",1,0,13,24),
+  rec("b7","breakfast","香蕉馒头片",["馒头","香蕉"],{"馒头":"35g","香蕉":"40g"},["蒸软切片涂香蕉泥。"],"",0,0,12,24),
+  rec("b8","breakfast","番茄鸡蛋软面",["面条","鸡蛋","番茄"],{"面条":"40g","鸡蛋":"1个","番茄":"60g"},["面软切短。"],"",1,0,11,24),
+  rec("b9","breakfast","山药玉米粥+蛋",["山药","玉米","鸡蛋"],{"山药":"50g","玉米":"30g","鸡蛋":"1个"},["煮软。"],"",1,0,11,24),
+  rec("b10","breakfast","土豆蛋饼",["土豆","鸡蛋","菠菜"],{"土豆":"70g","鸡蛋":"1个","菠菜":"20g"},["蒸泥摊软饼。"],"",1,0,12,24),
+  rec("b12","breakfast","鸡肉蔬菜粥",["大米","鸡腿肉","胡萝卜"],{"大米":"25g干","鸡腿肉":"25g","胡萝卜":"40g"},["去骨切碎煮烂。"],"",1,0,10,24),
+  rec("b13","breakfast","西葫芦鸡蛋羹",["西葫芦","鸡蛋"],{"西葫芦":"50g","鸡蛋":"1个"},["擦丝蒸嫩。"],"",0,0,10,24),
+  rec("b14","breakfast","苹果燕麦糊",["燕麦","苹果","牛奶"],{"燕麦":"20g干","苹果":"50g","牛奶":"80ml"},["苹果擦丝拌入。"],"",0,0,12,24),
+  rec("b15","breakfast","豆角蛋炒软饭",["大米","鸡蛋","豆角"],{"大米":"40g熟","鸡蛋":"1个","豆角":"30g"},["豆角细丁必须煮熟。"],"",1,0,14,24),
+  rec("b16","breakfast","芋头泥+蒸蛋",["芋头","鸡蛋"],{"芋头":"70g","鸡蛋":"1个"},["蒸透压泥。"],"",0,0,12,24),
+
+  rec("l1","lunch","番茄肉末软饭",["大米","猪瘦肉","番茄"],{"大米":"50g熟","猪瘦肉":"30g","番茄":"70g"},["可泡软。"],"",1,0,12,24),
+  rec("l2","lunch","西兰花鸡腿软饭",["大米","鸡腿肉","西兰花"],{"大米":"50g熟","鸡腿肉":"35g","西兰花":"60g"},["去骨检查碎骨。"],"",1,0,12,24),
+  rec("l3","lunch","菠菜猪肝粥",["大米","猪肝","菠菜"],{"大米":"25g干","猪肝":"15g","菠菜":"40g"},["肝切碎焯水。"],"内脏周≤2。",1,1,10,24),
+  rec("l4","lunch","鲈鱼土豆泥",["鲈鱼","土豆","胡萝卜"],{"鲈鱼":"40g净肉","土豆":"70g","胡萝卜":"40g"},["去刺。"],"",1,0,11,24),
+  rec("l5","lunch","牛肉软烂面",["面条","牛肉","胡萝卜"],{"面条":"45g","牛肉":"30g","胡萝卜":"50g"},["牛肉慢煮至软。"],"",1,0,12,24),
+  rec("l6","lunch","豆腐蔬菜汤面",["面条","豆腐","菠菜"],{"面条":"40g","豆腐":"50g","菠菜":"40g"},["面切短。"],"",0,0,11,24),
+  rec("l7","lunch","虾仁蛋炒软饭",["大米","虾仁","黄瓜"],{"大米":"50g熟","虾仁":"30g","黄瓜":"40g"},["虾去线切碎。"],"无海鲜过敏。",1,0,13,24),
+  rec("l8","lunch","鳕鱼蔬菜软饭",["大米","鳕鱼","西兰花"],{"大米":"50g熟","鳕鱼":"40g","西兰花":"50g"},["去刺。"],"",1,0,12,24),
+  rec("l9","lunch","香菇鸡肉焖饭",["大米","鸡腿肉","香菇"],{"大米":"50g熟","鸡腿肉":"30g","香菇":"20g"},["香菇切碎。"],"",1,0,13,24),
+  rec("l10","lunch","豌豆牛肉软饭",["大米","牛肉","豌豆"],{"大米":"50g熟","牛肉":"30g","豌豆":"25g"},["豌豆压破。"],"",1,0,14,24),
+  rec("l11","lunch","冬瓜肉末汤+软饭",["大米","猪瘦肉","冬瓜"],{"大米":"50g熟","猪瘦肉":"25g","冬瓜":"80g"},["冬瓜煮软。"],"",1,0,12,24),
+  rec("l13","lunch","番茄豆腐烩面",["面条","豆腐","番茄"],{"面条":"45g","豆腐":"50g","番茄":"70g"},["面软。"],"",0,0,12,24),
+  rec("l14","lunch","西葫芦牛肉末软饭",["大米","牛肉","西葫芦"],{"大米":"50g熟","牛肉":"30g","西葫芦":"60g"},["细丁煮软。"],"",1,0,13,24),
+  rec("l16","lunch","玉米鸡胸软饭",["大米","鸡胸肉","玉米粒"],{"大米":"50g熟","鸡胸肉":"30g","玉米粒":"30g"},["鸡胸撕碎，玉米压破。"],"",1,0,13,24),
+
+  rec("d1","dinner","白菜肉末豆腐煲",["猪瘦肉","豆腐","白菜"],{"猪瘦肉":"25g","豆腐":"50g","白菜":"70g"},["软煮。"],"",1,0,12,24),
+  rec("d2","dinner","胡萝卜蒸鸡肉末",["鸡腿肉","胡萝卜","土豆"],{"鸡腿肉":"30g","胡萝卜":"40g","土豆":"60g"},["去骨撕碎。"],"",1,0,11,24),
+  rec("d3","dinner","山药瘦肉汤",["猪瘦肉","山药","玉米"],{"猪瘦肉":"25g","山药":"50g","玉米":"30g"},["不用大骨头。"],"",0,0,12,24),
+  rec("d4","dinner","番茄蛋花软面",["面条","鸡蛋","番茄"],{"面条":"40g","鸡蛋":"1个","番茄":"60g"},["面切短。"],"",1,0,11,24),
+  rec("d5","dinner","青菜牛肉软饭",["大米","牛肉","菠菜"],{"大米":"45g熟","牛肉":"25g","菠菜":"50g"},["肉末煮软。"],"",1,0,12,24),
+  rec("d6","dinner","南瓜烩豆腐",["南瓜","豆腐","牛奶"],{"南瓜":"80g","豆腐":"40g","牛奶":"30ml"},["南瓜煮烂。"],"",0,0,12,24),
+  rec("d7","dinner","清蒸鱼配软饭",["鲈鱼","大米","西兰花"],{"鲈鱼":"35g净肉","大米":"45g熟","西兰花":"40g"},["去刺。"],"",1,0,12,24),
+  rec("d8","dinner","冬瓜虾仁羹",["虾仁","冬瓜","豆腐"],{"虾仁":"25g","冬瓜":"70g","豆腐":"30g"},["虾切碎。"],"",1,0,13,24),
+  rec("d9","dinner","香菇青菜面",["面条","香菇","菠菜"],{"面条":"40g","香菇":"15g","菠菜":"40g"},["香菇切碎。"],"",0,0,12,24),
+  rec("d10","dinner","土豆泥配肉末",["土豆","猪瘦肉","豌豆"],{"土豆":"80g","猪瘦肉":"25g","豌豆":"20g"},["豌豆压破。"],"",1,0,12,24),
+  rec("d11","dinner","鳕鱼豆腐煲",["鳕鱼","豆腐","白菜"],{"鳕鱼":"35g","豆腐":"40g","白菜":"50g"},["去刺。"],"",1,0,12,24),
+  rec("d12","dinner","鸡蛋蔬菜粥",["大米","鸡蛋","西葫芦"],{"大米":"20g干","鸡蛋":"1个","西葫芦":"50g"},["粥软。"],"",0,0,10,24),
+  rec("d13","dinner","番茄鸡胸软饭",["大米","鸡胸肉","番茄"],{"大米":"45g熟","鸡胸肉":"25g","番茄":"60g"},["鸡胸蒸碎。"],"",1,0,12,24),
+  rec("d14","dinner","豆角猪肉软饭",["大米","猪瘦肉","豆角"],{"大米":"45g熟","猪瘦肉":"25g","豆角":"35g"},["豆角熟透。"],"",1,0,14,24),
+  rec("d15","dinner","南瓜鸡肉粥",["大米","鸡腿肉","南瓜"],{"大米":"20g干","鸡腿肉":"25g","南瓜":"60g"},["去骨煮烂。"],"",1,0,10,24),
+  rec("d16","dinner","黄瓜鸡蛋汤+馒头",["鸡蛋","黄瓜","馒头"],{"鸡蛋":"1个","黄瓜":"40g","馒头":"30g"},["黄瓜去皮细丁。"],"",0,0,13,24),
+
+  rec("s1","snack","苹果香蕉泥",["苹果","香蕉"],{"苹果":"40g","香蕉":"40g"},["蒸或擦丝混合。"],"",0,0,10,24),
+  rec("s2","snack","酸奶蓝莓压碎",["酸奶","蓝莓"],{"酸奶":"80g","蓝莓":"30g"},["蓝莓必须压破。"],"",0,0,12,24),
+  rec("s3","snack","蒸梨小块",["梨"],{"梨":"80g"},["蒸软。"],"",0,0,10,24),
+  rec("s4","snack","红薯手指条",["红薯"],{"红薯":"70g"},["蒸熟切指状。"],"",0,0,9,24),
+  rec("s5","snack","猕猴桃酸奶",["猕猴桃","酸奶"],{"猕猴桃":"40g","酸奶":"70g"},["去芯切碎。"],"",0,0,12,24),
+  rec("s6","snack","西瓜去籽小丁",["西瓜"],{"西瓜":"80g"},["去籽，坐着吃。"],"",0,0,12,24),
+  rec("s7","snack","奶酪黄瓜条",["奶酪","黄瓜"],{"奶酪":"15g","黄瓜":"40g"},["去皮软条。"],"",0,0,13,24),
+  rec("s8","snack","橙子去筋小瓣",["橙子"],{"橙子":"70g"},["去筋小片。"],"",0,0,12,24),
+  rec("s9","snack","草莓压碎+酸奶",["草莓","酸奶"],{"草莓":"40g","酸奶":"70g"},["压碎。"],"",0,0,12,24),
+  rec("s10","snack","火龙果小丁",["火龙果"],{"火龙果":"70g"},["小丁。"],"",0,0,13,24),
+  rec("s11","snack","苹果手指条",["苹果"],{"苹果":"70g"},["去皮软条或蒸。"],"",0,0,10,24),
+  rec("s12","snack","南瓜小块",["南瓜"],{"南瓜":"70g"},["蒸熟指状。"],"",0,0,9,24),
+  rec("s13","snack","香蕉条",["香蕉"],{"香蕉":"70g"},["竖切。"],"",0,0,8,24),
+  rec("s14","snack","馒头蘸芝麻酱",["馒头","芝麻酱"],{"馒头":"30g","芝麻酱":"8g"},["酱调稀薄涂。"],"",0,0,13,24)
+];
+
+function stageOf(age){
+  const extra = profile().extra6==="1";
+  if(age<=6) return {id:"6", meals: extra?["lunch","dinner"]:["lunch"], snacks:[], milk:"配方奶约800–1000ml为参考；母乳按需", tex:"细滑泥，一种一种加", salt:"不加盐糖蜂蜜", freq: extra?"辅食可2次，奶为主":"辅食1次，胃口好可加餐", portion:"参考2–3勺起，不强制吃完"};
+  if(age<=8) return {id:"7-8", meals:["lunch","dinner"], snacks:[], milk:"配方约700–800ml参考；母乳按需", tex:"稠泥，可混合已适应食物", salt:"不加盐糖蜂蜜", freq:"辅食2次", portion:"参考50–80ml，按胃口"};
+  if(age<=11) return {id:"9-11", meals:["breakfast","lunch","dinner"], snacks:["snack"], milk:"配方约600–700ml参考；母乳按需", tex:"泥+细粒/软条", salt:"不加盐糖蜂蜜", freq:"辅食3餐，可1次水果", portion:"参考100–150ml，按胃口"};
+  if(age<=17) return {id:"12-17", meals:["breakfast","lunch","dinner"], snacks:["snack","snack"], milk:"约400–600ml参考，可用纯牛奶部分替代", tex:"软块、指状、手抓", salt:"先盛宝宝份再给大人加盐", freq:"3餐+2加餐", portion:"参考180–250ml，按胃口"};
+  return {id:"18-24", meals:["breakfast","lunch","dinner"], snacks:["snack","snack"], milk:"约400–600ml参考", tex:"接近家人饭，仍切小去骨刺", salt:"少盐少糖不吃辣；先盛宝宝份", freq:"3餐+2加餐，可同桌少屏幕", portion:"参考200–250ml，按胃口"};
+}
+
+function load(k,d){ try{ return JSON.parse(localStorage.getItem(k)) ?? d }catch(e){ return d } }
+function save(k,v){ localStorage.setItem(k, JSON.stringify(v)) }
+function defaultBirth(){ return "2025-06-07" } // 按2026-09-07满15个月的占位，请改成真实生日
+function profile(){
+  return load("xf_me", {name:"宝宝",birth:defaultBirth(),allergy:"",preterm:"0",gut:"normal",extra6:"0"});
+}
+function parseBirth(){
+  const s=profile().birth||defaultBirth();
+  const [y,m,d]=s.split("-").map(Number);
+  return new Date(y, (m||1)-1, d||1);
+}
+function monthsAgeOn(now){
+  const b=parseBirth();
+  let mo=(now.getFullYear()-b.getFullYear())*12+(now.getMonth()-b.getMonth());
+  if(now.getDate()<b.getDate()) mo--;
+  return Math.max(0, mo);
+}
+function weeksAliveOn(now){
+  const b=parseBirth();
+  return Math.max(0, Math.floor((now-b)/86400000/7));
+}
+function weeksComplementOn(now){
+  const b=parseBirth();
+  const start=new Date(b.getFullYear(), b.getMonth()+6, b.getDate());
+  if(now<start) return 0;
+  return Math.floor((now-start)/86400000/7)+1;
+}
+function pantry(){ return load("xf_pantry", []) }
+function feedback(){ return load("xf_fb", {}) }
+function setFb(id,st){ const f=feedback(); if(st==="clear") delete f[id]; else f[id]=st; save("xf_fb",f); }
+function seedFromDate(d){ return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate() }
+function mulberry(a){ return function(){ let t=a+=0x6D2B79F5; t=Math.imul(t^t>>>15,t|1); t^=t+Math.imul(t^t>>>7,t|61); return ((t^t>>>14)>>>0)/4294967296 } }
+function banned(){ return (profile().allergy||"").split(/[,，、]/).map(s=>s.trim()).filter(Boolean) }
+function chronoMonths(){ return monthsAgeOn(new Date()); }
+function age(){
+  const raw=chronoMonths() - ((+profile().preterm||0)/4.3);
+  const m=Math.round(raw*10)/10;
+  if(m<6) return 6;
+  if(m>24) return 24;
+  return Math.round(m);
+}
+function isRiceOnly(r){
+  const n=r.need.join("");
+  return n.includes("高铁米粉") && !r.need.some(x=>["小米","燕麦","南瓜","肉","鱼","肝"].some(k=>x.includes(k)));
+}
+function hasIron(r){ return !!r.iron; }
+function hasFish(r){ return /鲈鱼|鳕鱼|虾/.test(r.name+r.need.join("")); }
+function hasVeg(r){ return r.need.some(n=>ING.veg.includes(n)||["南瓜","土豆","红薯"].includes(n)); }
+function hasGrain(r){ return r.need.some(n=>ING.grains.includes(n)); }
+function groupsOf(r){
+  const g=new Set();
+  (r.need||[]).forEach(n=>{
+    if(ING.grains.includes(n)) g.add("谷薯");
+    if(["猪瘦肉","鸡腿肉","牛肉","猪肝","鸡肝","鲈鱼","鳕鱼","虾仁","鸡胸肉"].includes(n)) g.add("肉鱼");
+    if(["鸡蛋","蛋黄"].includes(n)) g.add("蛋");
+    if(ING.veg.includes(n)) g.add("蔬菜");
+    if(ING.fruit.includes(n)) g.add("水果");
+    if(["牛奶","酸奶","奶酪","豆腐"].includes(n)) g.add("奶豆");
+    if(n.includes("花生")) g.add("坚果酱");
+  });
+  return g;
+}
+function okRecipe(r){
+  const a=age();
+  if(a<r.min || a>r.max) return false;
+  const b=banned();
+  const text=r.name+r.need.join("");
+  if(b.some(x=>x && text.includes(x))) return false;
+  if(feedback()[r.id]==="no") return false;
+  const gut=profile().gut||"normal";
+  if(gut==="constipation" && /香蕉|高铁米粉$/.test(r.name) && !/梨|西葫芦|燕麦/.test(r.name)) {
+    /* 降权在 pick 里处理，这里仍允许 */
+  }
+  if(gut==="diarrhea" && /西梅|猕猴桃|草莓/.test(r.name)) return false;
+  return true;
+}
+function haveScore(r,have){
+  if(!have.length) return 0;
+  return r.need.filter(n=>have.some(h=>n.includes(h)||h.includes(n))).length;
+}
+function pick(list,rng,have,used,liverLeft){
+  let pool=list.filter(okRecipe).filter(r=>!used.has(r.id));
+  if(liverLeft<=0) pool=pool.filter(r=>!r.liver);
+  if(!pool.length){
+    pool=list.filter(okRecipe);
+    if(liverLeft<=0) pool=pool.filter(r=>!r.liver);
+    if(!pool.length) pool=list.filter(r=>(age()>=r.min&&age()<=r.max)&&(liverLeft>0||!r.liver));
+  }
+  const gut=profile().gut||"normal";
+  const ranked=[...pool].sort((a,b)=>{
+    const ua=used.has(a.id)?1:0, ub=used.has(b.id)?1:0;
+    if(ua!==ub) return ua-ub;
+    let sa=haveScore(a,have), sb=haveScore(b,have);
+    if(gut==="constipation"){
+      if(/梨|西葫芦|燕麦|菜/.test(a.name)) sa+=2;
+      if(/梨|西葫芦|燕麦|菜/.test(b.name)) sb+=2;
+      if(/香蕉|米粉/.test(a.name)) sa-=2;
+      if(/香蕉|米粉/.test(b.name)) sb-=2;
+    }
+    return sb-sa+(rng()-0.5)*0.15;
+  });
+  const choice=ranked[0];
+  if(!choice) return {id:"empty",slot:"lunch",name:"今日食谱不足（检查过敏设置）",need:[],grams:{},steps:["放宽过敏词或换月龄。"],note:"",iron:0,liver:0};
+  used.add(choice.id);
+  return choice;
+}
+function mealsOfDay(date,salt,ctx){
+  const st=stageOf(age());
+  const rng=mulberry(seedFromDate(date)+salt*97+age()*13);
+  const have=pantry();
+  ctx=ctx||{used:new Set(),liverLeft:2};
+  const items=[];
+  const take=(slot,label,cup)=>{
+    const r=pick(R.filter(x=>x.slot===slot || (slot==="snack"&&x.slot==="snack")), rng, have, ctx.used, ctx.liverLeft);
+    if(r.liver) ctx.liverLeft=Math.max(0,ctx.liverLeft-1);
+    items.push({label,cup,r});
+  };
+  st.meals.forEach(m=>{
+    const lab={breakfast:"早餐",lunch:"午餐",dinner:"晚餐"}[m];
+    take(m,lab,st.portion);
+  });
+  st.snacks.forEach((_,i)=>take("snack", i===0?"加餐":"下午加餐","少量"));
+  items.push({label:"奶类（全天）",cup:st.milk, extra:"母乳按需。配方奶毫升数只是参考，不是任务。1岁后可用纯牛奶部分替代。不要用含糖乳饮料或植物奶代替。"});
+  // 当日硬约束：尽量含谷薯+蔬菜+富铁
+  const recs=items.filter(i=>i.r&&i.r.need);
+  const okIron=recs.some(i=>hasIron(i.r));
+  const okVeg=recs.some(i=>hasVeg(i.r));
+  const okGrain=recs.some(i=>hasGrain(i.r));
+  if((!okIron||!okVeg||!okGrain) && recs.length){
+    const fill=R.filter(okRecipe).filter(r=>!ctx.used.has(r.id) && ( (!okIron&&r.iron) || (!okVeg&&hasVeg(r)) || (!okGrain&&hasGrain(r)) ));
+    if(fill[0]){
+      ctx.used.add(fill[0].id);
+      items.splice(items.length-1,0,{label:"补足多样性",cup:"按胃口",r:fill[0]});
+    }
+  }
+  return {date,items,st};
+}
+
+let regenSalt=0, weekCache=null;
+function weekPlans(force){
+  if(weekCache && !force) return weekCache;
+  const ctx={used:new Set(),liverLeft:2};
+  const out=[];
+  for(let i=0;i<7;i++){
+    const d=new Date(); d.setDate(d.getDate()+i);
+    out.push(mealsOfDay(d, i===0?regenSalt:0, ctx));
+  }
+  weekCache=out;
+  return out;
+}
+function gramsLine(r){ return Object.entries(r.grams||{}).map(([k,v])=>k+" "+v).join(" · "); }
+function recipeHtml(item){
+  if(item.extra) return `<div class="meal"><h3>${item.label}</h3><div class="small">${item.cup}</div><p class="small">${item.extra}</p></div>`;
+  const r=item.r, fb=feedback()[r.id];
+  return `<div class="meal">
+    <h3>${item.label} · ${r.name}</h3>
+    <div>${r.iron?'<span class="tag iron">富铁</span>':''}${r.liver?'<span class="tag liver">内脏·周≤2</span>':''}<span class="tag safe">${stageOf(age()).tex.split("，")[0]}</span><span class="tag">${item.cup}</span>${fb==="no"?'<span class="tag no">已标不吃</span>':''}${fb==="ok"?'<span class="tag safe">吃过</span>':''}</div>
+    <div class="small">参考量：${gramsLine(r)||"按胃口"}</div>
+    <ul>${(r.steps||[]).map(s=>`<li>${s}</li>`).join("")}</ul>
+    <div class="small">${r.note||""}</div>
+    <div class="row" style="margin-top:8px">
+      <button class="ok tiny" data-act="ok" data-id="${r.id}">吃了</button>
+      <button class="ghost tiny" data-act="no" data-id="${r.id}">不吃</button>
+    </div>
+  </div>`;
+}
+function renderToday(){
+  const p=profile(), st=stageOf(age()), now=new Date();
+  const mo=monthsAgeOn(now), wk=weeksAliveOn(now), cw=weeksComplementOn(now);
+  document.getElementById("sub").textContent=`${p.name} · ${mo}个月 · 出生第${wk}周`+(cw>0?` · 辅食第${cw}周`:"");
+  document.getElementById("todayDate").textContent=now.toLocaleDateString("zh-CN",{weekday:"long",month:"long",day:"numeric"});
+  const corr = profile().preterm && profile().preterm!=="0";
+  document.getElementById("stageHint").innerHTML =
+    `按生日${corr?"和纠正月龄":""}匹配。质地：${st.tex}。${st.salt}。奶：${st.milk}。<br>克数是起点，不强制吃完。餐间可少量白开水。维生素D是否补充请遵儿保（常约400IU），这里不卖药。同桌少看屏幕。`;
+  const plan=weekPlans()[0];
+  document.getElementById("todayMeals").innerHTML=plan.items.map(it=>`<div class="card">${recipeHtml(it)}</div>`).join("");
+  const need=plan.items.filter(i=>i.r).flatMap(i=>i.r.need||[]);
+  const have=pantry();
+  const miss=[...new Set(need)].filter(n=>!have.some(h=>n.includes(h)||h.includes(n)));
+  document.getElementById("todayShop").innerHTML = have.length===0 ? "还没勾库存。" :
+    (miss.length?miss.map(x=>`<div class="shop-item"><span>${x}</span><span>需买</span></div>`).join(""):"库存可覆盖今日。");
+}
+function inPantry(name,have){ return have.some(h=>name.includes(h)||h.includes(name)); }
+function groupOf(name){
+  if(ING.grains.includes(name)) return "谷薯";
+  if(ING.protein.includes(name)||name.includes("奶")) return "蛋白/奶";
+  if(ING.veg.includes(name)) return "蔬菜";
+  if(ING.fruit.includes(name)) return "水果";
+  return "其他";
+}
+function weekNeedMap(){
+  const count={};
+  weekPlans().forEach(plan=>{
+    plan.items.forEach(it=> (it.r&&it.r.need||[]).forEach(n=>{ count[n]=(count[n]||0)+1; }));
+  });
+  count["奶类"]=7;
+  return count;
+}
+function shopText(onlyMiss){
+  const have=pantry();
+  const rows=Object.entries(weekNeedMap()).sort((a,b)=>b[1]-a[1]);
+  const pick=onlyMiss&&have.length?rows.filter(([n])=>!inPantry(n,have)):rows;
+  const lines=["小辅食谱 · "+age()+"个月 · 本周购物"];
+  ["谷薯","蛋白/奶","蔬菜","水果","其他"].forEach(g=>{
+    const part=pick.filter(([n])=>groupOf(n)===g);
+    if(!part.length) return;
+    lines.push("","【"+g+"】");
+    part.forEach(([n,c])=>lines.push("☐ "+n+"  ×"+c+"次"));
+  });
+  return lines.join("\n");
+}
+function renderWeekShop(){
+  const have=pantry();
+  const rows=Object.entries(weekNeedMap());
+  const miss=rows.filter(([n])=>!have.length||!inPantry(n,have));
+  const own=have.length?rows.filter(([n])=>inPantry(n,have)):[];
+  const block=(title,list,empty)=>{
+    if(!list.length) return `<div class="card"><strong>${title}</strong><div class="small">${empty}</div></div>`;
+    const groups={};
+    list.forEach(([n,c])=>{(groups[groupOf(n)]=groups[groupOf(n)]||[]).push([n,c]);});
+    return `<div class="card"><strong>${title}</strong>${Object.entries(groups).map(([g,arr])=>`<div class="shop-group"><h4>${g}</h4>${arr.map(([n,c])=>`<div class="shop-item"><span>${n}</span><span class="cnt">本周 ${c} 次</span></div>`).join("")}</div>`).join("")}</div>`;
+  };
+  document.getElementById("weekShop").innerHTML=block("需要买",miss,"未勾库存则全部列出。")+(own.length?block("家里已有",own,""):"");
+}
+function renderWeek(){
+  renderWeekShop();
+  const el=document.getElementById("weekList");
+  el.innerHTML="";
+  weekPlans().forEach(plan=>{
+    const names=plan.items.filter(i=>i.r).map(i=>i.label.replace("上午","").replace("下午","")+" "+i.r.name).join(" · ");
+    el.insertAdjacentHTML("beforeend", `<div class="card"><strong>${plan.date.toLocaleDateString("zh-CN",{weekday:"short",month:"numeric",day:"numeric"})}</strong><div class="small">${names}</div></div>`);
+  });
+}
+function renderPantry(){
+  const have=new Set(pantry());
+  document.getElementById("pantryBox").innerHTML=Object.entries({谷薯:ING.grains,"蛋白/奶":ING.protein,蔬菜:ING.veg,水果:ING.fruit,其他:ING.extra}).map(([t,arr])=>`
+    <div style="margin-top:10px"><strong>${t}</strong><div class="row" style="margin-top:6px">
+      ${arr.map(x=>`<label style="width:auto;margin:0;display:flex;gap:4px;align-items:center;background:var(--chip);padding:6px 8px;border-radius:999px;font-size:13px;color:var(--ink)">
+        <input type="checkbox" value="${x}" ${have.has(x)?"checked":""} style="width:auto"/>${x}
+      </label>`).join("")}
+    </div></div>`).join("");
+}
+function renderMe(){
+  const p=profile(), st=stageOf(age()), now=new Date();
+  childName.value=p.name; childBirth.value=p.birth||defaultBirth(); allergy.value=p.allergy||"";
+  preterm.value=p.preterm||"0"; gut.value=p.gut||"normal"; extra6.value=p.extra6||"0";
+  const mo=monthsAgeOn(now);
+  document.getElementById("ageAuto").textContent =
+    `今天满 ${mo} 个月（食谱按 ${age()} 个月库）· 出生第 ${weeksAliveOn(now)} 周` +
+    (weeksComplementOn(now)>0 ? ` · 辅食第 ${weeksComplementOn(now)} 周` : " · 尚未到辅食月龄，暂用6个月食谱");
+  const nos=Object.keys(feedback()).filter(id=>feedback()[id]==="no").map(id=>R.find(r=>r.id===id)).filter(Boolean);
+  document.getElementById("noList").innerHTML=nos.length?nos.map(r=>`<div class="shop-item"><span>${r.name}</span><button class="ghost tiny" data-unno="${r.id}">恢复</button></div>`).join(""):`<div class="small">还没有标记不吃。</div>`;
+  document.getElementById("ageTips").innerHTML=`<strong>${age()}个月要点</strong><ul class="small"><li>餐次：${st.freq}</li><li>质地：${st.tex}</li><li>调味：${st.salt}</li><li>奶量：${st.milk}</li><li>份量：${st.portion}</li></ul>`;
+}
+document.querySelectorAll(".nav button").forEach(btn=>{
+  btn.onclick=()=>{
+    document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("on"));
+    btn.classList.add("on");
+    ["today","week","pantry","me"].forEach(id=>document.getElementById("page-"+id).classList.toggle("hidden", id!==btn.dataset.p));
+    if(btn.dataset.p==="week") renderWeek();
+    if(btn.dataset.p==="pantry") renderPantry();
+    if(btn.dataset.p==="me") renderMe();
+  };
+});
+document.getElementById("todayMeals").addEventListener("click", e=>{
+  const btn=e.target.closest("button[data-act]");
+  if(!btn) return;
+  setFb(btn.dataset.id, btn.dataset.act);
+  if(btn.dataset.act==="no") weekCache=null;
+  renderToday();
+});
+document.getElementById("noList").addEventListener("click", e=>{
+  const btn=e.target.closest("[data-unno]");
+  if(!btn) return;
+  setFb(btn.dataset.unno,"clear"); weekCache=null; renderMe();
+});
+btnRegen.onclick=()=>{ regenSalt++; weekCache=null; renderToday(); };
+btnSavePantry.onclick=()=>{ save("xf_pantry",[...document.querySelectorAll("#pantryBox input:checked")].map(i=>i.value)); weekCache=null; alert("库存已保存"); };
+btnAllPantry.onclick=()=>document.querySelectorAll("#pantryBox input").forEach(i=>i.checked=true);
+btnClearNo.onclick=()=>{ save("xf_fb",{}); weekCache=null; renderMe(); };
+function copyText(t){
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(()=>alert("已复制")).catch(()=>prompt("复制",t));
+  else prompt("复制",t);
+}
+document.getElementById("btnCopyShop").onclick=()=>copyText(shopText(true));
+document.getElementById("btnCopyAllShop").onclick=()=>copyText(shopText(false));
+btnSaveMe.onclick=()=>{
+  const birth=childBirth.value||defaultBirth();
+  save("xf_me",{name:childName.value||"宝宝",birth,allergy:allergy.value,preterm:preterm.value,gut:gut.value,extra6:extra6.value});
+  weekCache=null; renderToday(); renderMe();
+  alert("已更新。纠正/实际月龄按 "+age()+" 个月出餐（数据只存在本机）");
+};
+renderToday();
+</script>
+</body>
+</html>
