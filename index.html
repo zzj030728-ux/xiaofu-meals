@@ -97,7 +97,7 @@ ul{margin:6px 0;padding-left:18px}
       <label>小名</label><input id="childName" value="宝宝" />
       <label>出生日期（据此自动计算月龄和本周菜单）</label>
       <input id="childBirth" type="date" />
-      <p class="small" id="ageAuto" style="margin-top:8px">保存出生日期后自动计算。</p>
+      <p class="small" id="ageAuto" style="margin-top:8px">日期框为空白，请自己选择出生日期后保存。</p>
       <label>是否早产</label>
       <select id="preterm">
         <option value="0">足月</option>
@@ -279,27 +279,34 @@ function stageOf(age){
 
 function load(k,d){ try{ return JSON.parse(localStorage.getItem(k)) ?? d }catch(e){ return d } }
 function save(k,v){ localStorage.setItem(k, JSON.stringify(v)) }
-function defaultBirth(){ return "2025-06-07" } // 按2026-09-07满15个月的占位，请改成真实生日
 function profile(){
-  return load("xf_me", {name:"宝宝",birth:defaultBirth(),allergy:"",preterm:"0",gut:"normal",extra6:"0"});
+  const p=load("xf_me", {name:"宝宝",birth:"",allergy:"",preterm:"0",gut:"normal",extra6:"0"});
+  if(p.birth==="2025-06-07") p.birth="";
+  return p;
+}
+function hasBirth(){
+  return !!(profile().birth && /^\d{4}-\d{2}-\d{2}$/.test(profile().birth));
 }
 function parseBirth(){
-  const s=profile().birth||defaultBirth();
-  const [y,m,d]=s.split("-").map(Number);
+  if(!hasBirth()) return null;
+  const [y,m,d]=profile().birth.split("-").map(Number);
   return new Date(y, (m||1)-1, d||1);
 }
 function monthsAgeOn(now){
   const b=parseBirth();
+  if(!b) return null;
   let mo=(now.getFullYear()-b.getFullYear())*12+(now.getMonth()-b.getMonth());
   if(now.getDate()<b.getDate()) mo--;
   return Math.max(0, mo);
 }
 function weeksAliveOn(now){
   const b=parseBirth();
+  if(!b) return 0;
   return Math.max(0, Math.floor((now-b)/86400000/7));
 }
 function weeksComplementOn(now){
   const b=parseBirth();
+  if(!b) return 0;
   const start=new Date(b.getFullYear(), b.getMonth()+6, b.getDate());
   if(now<start) return 0;
   return Math.floor((now-start)/86400000/7)+1;
@@ -312,7 +319,9 @@ function mulberry(a){ return function(){ let t=a+=0x6D2B79F5; t=Math.imul(t^t>>>
 function banned(){ return (profile().allergy||"").split(/[,，、]/).map(s=>s.trim()).filter(Boolean) }
 function chronoMonths(){ return monthsAgeOn(new Date()); }
 function age(){
-  const raw=chronoMonths() - ((+profile().preterm||0)/4.3);
+  const c=chronoMonths();
+  if(c==null) return null;
+  const raw=c - ((+profile().preterm||0)/4.3);
   const m=Math.round(raw*10)/10;
   if(m<6) return 6;
   if(m>24) return 24;
@@ -444,7 +453,16 @@ function recipeHtml(item){
   </div>`;
 }
 function renderToday(){
-  const p=profile(), st=stageOf(age()), now=new Date();
+  const p=profile(), now=new Date();
+  if(!hasBirth()){
+    document.getElementById("sub").textContent="请先填写出生日期";
+    document.getElementById("todayDate").textContent=now.toLocaleDateString("zh-CN",{weekday:"long",month:"long",day:"numeric"});
+    document.getElementById("stageHint").textContent="没有默认生日。请到「设置」选择宝宝的出生日期后保存。";
+    document.getElementById("todayMeals").innerHTML='<div class="card warnbox">请先在底部「设置」里填写出生日期，保存后才会按月龄出餐。</div>';
+    document.getElementById("todayShop").textContent="填写生日后再生成购物项。";
+    return;
+  }
+  const st=stageOf(age());
   const mo=monthsAgeOn(now), wk=weeksAliveOn(now), cw=weeksComplementOn(now);
   document.getElementById("sub").textContent=`${p.name} · ${mo}个月 · 出生第${wk}周`+(cw>0?` · 辅食第${cw}周`:"");
   document.getElementById("todayDate").textContent=now.toLocaleDateString("zh-CN",{weekday:"long",month:"long",day:"numeric"});
@@ -520,15 +538,21 @@ function renderPantry(){
     </div></div>`).join("");
 }
 function renderMe(){
-  const p=profile(), st=stageOf(age()), now=new Date();
-  childName.value=p.name; childBirth.value=p.birth||defaultBirth(); allergy.value=p.allergy||"";
+  const p=profile(), now=new Date();
+  childName.value=p.name; childBirth.value=p.birth||""; allergy.value=p.allergy||"";
   preterm.value=p.preterm||"0"; gut.value=p.gut||"normal"; extra6.value=p.extra6||"0";
   const mo=monthsAgeOn(now);
-  document.getElementById("ageAuto").textContent =
-    `今天满 ${mo} 个月（食谱按 ${age()} 个月库）· 出生第 ${weeksAliveOn(now)} 周` +
-    (weeksComplementOn(now)>0 ? ` · 辅食第 ${weeksComplementOn(now)} 周` : " · 尚未到辅食月龄，暂用6个月食谱");
+  document.getElementById("ageAuto").textContent = hasBirth()
+    ? (`今天满 ${mo} 个月（食谱按 ${age()} 个月库）· 出生第 ${weeksAliveOn(now)} 周` +
+      (weeksComplementOn(now)>0 ? ` · 辅食第 ${weeksComplementOn(now)} 周` : " · 尚未到辅食月龄，暂用6个月食谱"))
+    : "尚未填写出生日期，请点日期框自己选，保存后才出餐。";
   const nos=Object.keys(feedback()).filter(id=>feedback()[id]==="no").map(id=>R.find(r=>r.id===id)).filter(Boolean);
   document.getElementById("noList").innerHTML=nos.length?nos.map(r=>`<div class="shop-item"><span>${r.name}</span><button class="ghost tiny" data-unno="${r.id}">恢复</button></div>`).join(""):`<div class="small">还没有标记不吃。</div>`;
+  if(!hasBirth()){
+    document.getElementById("ageTips").innerHTML=`<strong>请先填写出生日期</strong><p class="small">不会预填任何生日。</p>`;
+    return;
+  }
+  const st=stageOf(age());
   document.getElementById("ageTips").innerHTML=`<strong>${age()}个月要点</strong><ul class="small"><li>餐次：${st.freq}</li><li>质地：${st.tex}</li><li>调味：${st.salt}</li><li>奶量：${st.milk}</li><li>份量：${st.portion}</li></ul>`;
 }
 document.querySelectorAll(".nav button").forEach(btn=>{
@@ -564,10 +588,11 @@ function copyText(t){
 document.getElementById("btnCopyShop").onclick=()=>copyText(shopText(true));
 document.getElementById("btnCopyAllShop").onclick=()=>copyText(shopText(false));
 btnSaveMe.onclick=()=>{
-  const birth=childBirth.value||defaultBirth();
+  const birth=(childBirth.value||"").trim();
+  if(!birth){ alert("请选择出生日期"); return; }
   save("xf_me",{name:childName.value||"宝宝",birth,allergy:allergy.value,preterm:preterm.value,gut:gut.value,extra6:extra6.value});
   weekCache=null; renderToday(); renderMe();
-  alert("已更新。纠正/实际月龄按 "+age()+" 个月出餐（数据只存在本机）");
+  alert("已保存。现在按 "+age()+" 个月出餐（数据只存在本机）");
 };
 renderToday();
 </script>
