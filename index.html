@@ -25,6 +25,7 @@ header p{margin:4px 0 0;opacity:.92;font-size:12px}
 .tag.safe{background:#dcefe4;color:#14532d}
 .tag.liver{background:#fee2e2;color:#9b2c2c}
 .tag.no{background:#f3f4f6;color:#6b7280}
+.tag.new{background:#fef3c7;color:#92400e}
 button{appearance:none;border:0;background:var(--accent);color:#fff;border-radius:12px;padding:10px 14px;font-size:14px;font-weight:600}
 button.ghost{background:#fff;color:var(--accent);border:1px solid #e8c8b0}
 button.ok{background:var(--accent2)}
@@ -61,6 +62,7 @@ ul{margin:6px 0;padding-left:18px}
       </div>
       <div class="small" id="stageHint" style="margin-top:6px"></div>
     </div>
+    <div id="todayNewFoods"></div>
     <div id="todayMeals"></div>
     <div class="card warnbox">过敏急救：皮疹发痒可观察并停该食物；若呕吐、喘、唇肿、精神差，立刻就医，不要只换菜单。贫血、早产未评估不要自行加量吃肝。</div>
     <div class="card">
@@ -123,6 +125,24 @@ ul{margin:6px 0;padding-left:18px}
       <label>过敏/不吃（逗号分隔）</label>
       <input id="allergy" placeholder="例如：芒果, 花生" />
       <div class="row" style="margin-top:10px"><button class="ok" id="btnSaveMe">保存档案</button></div>
+    </div>
+    <div class="card">
+      <strong>新食物观察（常说的「排敏」）</strong>
+      <p class="small">这是家里第一次吃某种食物时的观察办法，不是医院里的脱敏治疗，也不能保证不过敏。</p>
+      <ul class="small">
+        <li>一次只加 <b>一种</b> 新食物，已适应的可以照常吃。</li>
+        <li>选上午或中午，便于观察；不要晚上第一次试高风险食物。</li>
+        <li>第一口从米粒大/1/4小勺起，无不适再加到正常量。</li>
+        <li>同一食物连续观察约 <b>3 天</b>，这 3 天不要叠第二种新食物。</li>
+        <li>常见需观察：鸡蛋、牛奶/酸奶、小麦面、鱼、虾、花生酱、大豆/豆腐、芝麻酱。</li>
+        <li>花生、坚果只能用无颗粒酱调稀，禁止整颗、颗粒酱、坚果碎。</li>
+        <li>中重度湿疹、已确诊过敏、家族严重过敏：引入前先问医生。</li>
+      </ul>
+      <p class="small"><b>可继续、但记下：</b>口周发红、一过性小疹、轻微腹胀——先停该新食物，观察后再小量试或就医询问。</p>
+      <p class="small"><b>立刻停并就医：</b>呕吐、遍身风团、喘、咳嗽加重、唇眼肿、精神差、便血。</p>
+      <label>已经适应、不必再当「新食物」的（逗号分隔）</label>
+      <input id="knownFoods" placeholder="例如：南瓜, 胡萝卜, 大米" />
+      <p class="small" style="margin-top:6px">保存档案后，今日菜单会标出尚未适应的食材。</p>
     </div>
     <div class="card">
       <strong>什么时候能吃和大人一样的饭？</strong>
@@ -280,9 +300,40 @@ function stageOf(age){
 function load(k,d){ try{ return JSON.parse(localStorage.getItem(k)) ?? d }catch(e){ return d } }
 function save(k,v){ localStorage.setItem(k, JSON.stringify(v)) }
 function profile(){
-  const p=load("xf_me", {name:"宝宝",birth:"",allergy:"",preterm:"0",gut:"normal",extra6:"0"});
+  const p=load("xf_me", {name:"宝宝",birth:"",allergy:"",preterm:"0",gut:"normal",extra6:"0",known:""});
   if(p.birth==="2025-06-07") p.birth="";
+  if(p.known==null) p.known="";
   return p;
+}
+const WATCH = {
+  "鸡蛋":"常见过敏原，上午少量试，观察约3天。",
+  "蛋黄":"常见过敏原，可从1/4个起。",
+  "牛奶":"液态奶建议1岁后常规给；酸奶/奶酪可更早小量观察。",
+  "酸奶":"选无添加糖。第一次按新食物观察。",
+  "奶酪":"选低盐。第一次按新食物观察。",
+  "面条":"含小麦，第一次按新食物观察。",
+  "馒头":"含小麦，第一次按新食物观察。",
+  "鲈鱼":"鱼类过敏原，去刺，上午试。",
+  "鳕鱼":"鱼类过敏原，去刺，上午试。",
+  "虾仁":"海鲜，确认无过敏后再给。",
+  "原味花生酱":"必须调到很稀、无颗粒。禁止整颗坚果。",
+  "芝麻酱":"调稀薄涂，禁止整粒芝麻堆。",
+  "豆腐":"大豆，第一次按新食物观察。",
+  "草莓":"部分孩子口周发红，先观察。",
+  "猕猴桃":"部分孩子口周发红，先观察。",
+  "芒果":"容易引起口周刺激。",
+  "蓝莓":"必须压破，也观察是否不适。"
+};
+function knownList(){
+  return (profile().known||"").split(/[,，、]/).map(s=>s.trim()).filter(Boolean);
+}
+function isKnown(name){
+  const k=knownList();
+  return k.some(x=>name.includes(x)||x.includes(name));
+}
+function newFoodsOf(items){
+  const names=[...new Set(items.filter(i=>i.r).flatMap(i=>i.r.need||[]))];
+  return names.filter(n=>WATCH[n] && !isKnown(n) && !banned().some(b=>n.includes(b)||b.includes(n)));
 }
 function hasBirth(){
   return !!(profile().birth && /^\d{4}-\d{2}-\d{2}$/.test(profile().birth));
@@ -442,7 +493,7 @@ function recipeHtml(item){
   const r=item.r, fb=feedback()[r.id];
   return `<div class="meal">
     <h3>${item.label} · ${r.name}</h3>
-    <div>${r.iron?'<span class="tag iron">富铁</span>':''}${r.liver?'<span class="tag liver">内脏·周≤2</span>':''}<span class="tag safe">${stageOf(age()).tex.split("，")[0]}</span><span class="tag">${item.cup}</span>${fb==="no"?'<span class="tag no">已标不吃</span>':''}${fb==="ok"?'<span class="tag safe">吃过</span>':''}</div>
+    <div>${r.iron?'<span class="tag iron">富铁</span>':''}${r.liver?'<span class="tag liver">内脏·周≤2</span>':''}${(r.need||[]).some(n=>WATCH[n]&&!isKnown(n))?'<span class="tag new">含未适应食物·观察</span>':''}<span class="tag safe">${stageOf(age()).tex.split("，")[0]}</span><span class="tag">${item.cup}</span>${fb==="no"?'<span class="tag no">已标不吃</span>':''}${fb==="ok"?'<span class="tag safe">吃过</span>':''}</div>
     <div class="small">参考量：${gramsLine(r)||"按胃口"}</div>
     <ul>${(r.steps||[]).map(s=>`<li>${s}</li>`).join("")}</ul>
     <div class="small">${r.note||""}</div>
@@ -458,6 +509,7 @@ function renderToday(){
     document.getElementById("sub").textContent="请先填写出生日期";
     document.getElementById("todayDate").textContent=now.toLocaleDateString("zh-CN",{weekday:"long",month:"long",day:"numeric"});
     document.getElementById("stageHint").textContent="没有默认生日。请到「设置」选择宝宝的出生日期后保存。";
+    document.getElementById("todayNewFoods").innerHTML="";
     document.getElementById("todayMeals").innerHTML='<div class="card warnbox">请先在底部「设置」里填写出生日期，保存后才会按月龄出餐。</div>';
     document.getElementById("todayShop").textContent="填写生日后再生成购物项。";
     return;
@@ -470,6 +522,14 @@ function renderToday(){
   document.getElementById("stageHint").innerHTML =
     `按生日${corr?"和纠正月龄":""}匹配。质地：${st.tex}。${st.salt}。奶：${st.milk}。<br>克数是起点，不强制吃完。餐间可少量白开水。维生素D是否补充请遵儿保（常约400IU），这里不卖药。同桌少看屏幕。`;
   const plan=weekPlans()[0];
+  const news=newFoodsOf(plan.items);
+  document.getElementById("todayNewFoods").innerHTML = news.length
+    ? `<div class="card warnbox"><strong>今日未适应食物（一次只试一种）</strong>
+        <p class="small">第一次吃请放上午/中午，从1/4小勺起，观察约3天，这3天不要加第二种新食物。</p>
+        ${news.map(n=>`<div class="shop-item"><span><b>${n}</b><br><span class="small">${WATCH[n]}</span></span>
+        <button class="ok tiny" data-know="${n}">已适应</button></div>`).join("")}
+        <p class="small">口周发红可先停该食物；呕吐、风团、喘、唇肿、精神差立刻就医。</p></div>`
+    : `<div class="card"><strong>新食物观察</strong><p class="small">今日菜单食材都在「已适应」名单里，或暂无高关注过敏原。设置里可补充名单。</p></div>`;
   document.getElementById("todayMeals").innerHTML=plan.items.map(it=>`<div class="card">${recipeHtml(it)}</div>`).join("");
   const need=plan.items.filter(i=>i.r).flatMap(i=>i.r.need||[]);
   const have=pantry();
@@ -540,6 +600,7 @@ function renderPantry(){
 function renderMe(){
   const p=profile(), now=new Date();
   childName.value=p.name; childBirth.value=p.birth||""; allergy.value=p.allergy||"";
+  if(document.getElementById("knownFoods")) knownFoods.value=p.known||"";
   preterm.value=p.preterm||"0"; gut.value=p.gut||"normal"; extra6.value=p.extra6||"0";
   const mo=monthsAgeOn(now);
   document.getElementById("ageAuto").textContent = hasBirth()
@@ -572,6 +633,16 @@ document.getElementById("todayMeals").addEventListener("click", e=>{
   if(btn.dataset.act==="no") weekCache=null;
   renderToday();
 });
+document.getElementById("todayNewFoods").addEventListener("click", e=>{
+  const btn=e.target.closest("[data-know]");
+  if(!btn) return;
+  const p=profile();
+  const cur=knownList();
+  if(!cur.includes(btn.dataset.know)) cur.push(btn.dataset.know);
+  p.known=cur.join("，");
+  save("xf_me",p);
+  renderToday();
+});
 document.getElementById("noList").addEventListener("click", e=>{
   const btn=e.target.closest("[data-unno]");
   if(!btn) return;
@@ -590,7 +661,7 @@ document.getElementById("btnCopyAllShop").onclick=()=>copyText(shopText(false));
 btnSaveMe.onclick=()=>{
   const birth=(childBirth.value||"").trim();
   if(!birth){ alert("请选择出生日期"); return; }
-  save("xf_me",{name:childName.value||"宝宝",birth,allergy:allergy.value,preterm:preterm.value,gut:gut.value,extra6:extra6.value});
+  save("xf_me",{name:childName.value||"宝宝",birth,allergy:allergy.value,preterm:preterm.value,gut:gut.value,extra6:extra6.value,known:knownFoods.value||""});
   weekCache=null; renderToday(); renderMe();
   alert("已保存。现在按 "+age()+" 个月出餐（数据只存在本机）");
 };
